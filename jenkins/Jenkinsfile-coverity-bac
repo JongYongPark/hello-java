@@ -2,7 +2,7 @@ pipeline {
     agent { label 'linux64' }
 
     environment {
-        CONNECT = 'https://coverity.chuckaude.com:8443'
+        CONNECT = 'http://us03-sig-ts-jonpark.nprd.sig.synopsys.com:8080'
         PROJECT = 'hello-java'
         BLDCMD = 'mvn -B package -DskipTests'
         CHECKERS = '--webapp-security --enable-callgraph-metrics'
