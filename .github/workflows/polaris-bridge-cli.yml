@@ -28,7 +28,7 @@ jobs:
     - name: Polaris Full Scan
       if: ${{ github.event_name != 'pull_request' }}
       run: |
-        // echo just use variable of env: tag
+        # echo just use variable of env: tag
         echo "BRIDGE_POLARIS_SERVERURL : $BRIDGE_POLARIS_SERVERURL"
         echo "RUNNER_TEMP : $RUNNER_TEMP"
         
