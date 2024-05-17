@@ -52,7 +52,8 @@ jobs:
         curl -fLsS $COVERITY_URL/api/v2/scans/downloads/$COVERITY_THIN_CLIENT | tar -C ${{ runner.temp }} -xzf -
         #  -o analyze.location=connect # for CMC 
         #  -o analyze.location=local # for classic Coverity
-        ${{ runner.temp }}/bin/coverity --ticker-mode none scan -o analyze.location=local -o commit.connect.url=$COVERITY_URL \
+        #  -o ommit.connect.on-new-cert=trust  # for classic Coverity
+        ${{ runner.temp }}/bin/coverity --ticker-mode none scan -o analyze.location=local -o commit.connect.on-new-cert=trust -o commit.connect.url=$COVERITY_URL \
             -o commit.connect.project=$COVERITY_PROJECT -o commit.connect.stream=$COVERITY_STREAM \
             -o commit.connect.comparison-report=comparison-report.json
         cat comparison-report.json | jq '.issues[] | select(.presentInReferenceSnapshot == false and (.impact == "Medium" or .impact == "High"))' > new-issues.json
