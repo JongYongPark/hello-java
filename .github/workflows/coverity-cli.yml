@@ -17,7 +17,11 @@ jobs:
       # https://partner-demo.coverity.synopsys.com/
       # COVERITY_TOOLKIT: cov-analysis-linux64-2024.3.1
 
-      COVERITY_URL: http://us03-sig-ts-jonpark.nprd.sig.synopsys.com:8080
+      # https://www.cyberciti.biz/faq/how-to-find-my-public-ip-address-from-command-line-on-a-linux/
+      # dig TXT +short o-o.myaddr.l.google.com @ns1.google.com
+      
+      # COVERITY_URL: http://us03-sig-ts-jonpark.nprd.sig.synopsys.com:8080
+      COVERITY_URL: http://74.125.80.13:8080
       COV_USER: admin
       COVERITY_PASSPHRASE: coverity
       COVERITY_PROJECT: ${{ github.event.repository.name }}
