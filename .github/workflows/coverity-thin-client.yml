@@ -36,7 +36,7 @@ jobs:
         #  -o analyze.location=connect # for CMC 
         #  -o analyze.location=local # for classic Coverity
         #  -o ommit.connect.on-new-cert=trust  # for classic Coverity
-        ${{ runner.temp }}/bin/coverity --ticker-mode none scan -o analyze.location=local -o ommit.connect.on-new-cert=trust -o commit.connect.url=$COVERITY_URL \
+        ${{ runner.temp }}/bin/coverity --ticker-mode none scan -o analyze.location=local -o commit.connect.on-new-cert=trust -o commit.connect.url=$COVERITY_URL \
             -o commit.connect.project=$COVERITY_PROJECT -o commit.connect.stream=$COVERITY_STREAM
     - name: Coverity Quality Gate
       if: ${{ github.event_name != 'pull_request' }}
