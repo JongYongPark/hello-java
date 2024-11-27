@@ -8,3 +8,5 @@ idir
 cdir
 .data-coverity
 .cicd
+.codesight
+.bridge
