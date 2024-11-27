@@ -1,0 +1,70 @@
+# example pipeline for Coverity scans using the Bridge CLI
+trigger:
+- main
+- develop
+pool:
+  vmImage: ubuntu-latest
+variables:
+  - group: poc357.coverity.synopsys.com
+steps:
+- task: JavaToolInstaller@0
+  displayName: 'Use Java 17'
+  inputs:
+    versionSpec: 17
+    jdkArchitectureOption: x64
+    jdkSourceOption: PreInstalled
+- task: Maven@4
+  displayName: 'Maven Build'
+  inputs:
+    options: '-B -DskipTests'
+- bash: |
+    set -ex
+    curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d $(Agent.TempDirectory) bridge.zip && rm -f bridge.zip
+    $(Agent.TempDirectory)/synopsys-bridge --stage connect
+  env:
+    BRIDGE_COVERITY_CONNECT_URL: $(COVERITY_URL)
+    BRIDGE_COVERITY_CONNECT_USER_NAME: $(COV_USER)
+    BRIDGE_COVERITY_CONNECT_USER_PASSWORD: $(COVERITY_PASSPHRASE)
+    BRIDGE_COVERITY_CONNECT_PROJECT_NAME: $(Build.Repository.Name)
+    BRIDGE_COVERITY_CONNECT_STREAM_NAME: $(Build.Repository.Name)-$(Build.SourceBranchName)
+    BRIDGE_COVERITY_CONNECT_POLICY_VIEW: 'Outstanding Issues'
+    # BRIDGE_COVERITY_LOCAL: true
+    # INCLUDE_DIAGNOSTICS: 'true'
+  displayName: 'Coverity Full Scan'
+  condition: not(eq(variables['Build.Reason'], 'PullRequest'))
+- bash: |
+    set -ex
+    curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d $(Agent.TempDirectory) bridge.zip && rm -f bridge.zip
+    $(Agent.TempDirectory)/synopsys-bridge --stage connect
+  env:
+    BRIDGE_COVERITY_CONNECT_URL: $(COVERITY_URL)
+    BRIDGE_COVERITY_CONNECT_USER_NAME: $(COV_USER)
+    BRIDGE_COVERITY_CONNECT_USER_PASSWORD: $(COVERITY_PASSPHRASE)
+    BRIDGE_COVERITY_CONNECT_PROJECT_NAME: $(Build.Repository.Name)
+    BRIDGE_COVERITY_CONNECT_STREAM_NAME: $(Build.Repository.Name)-$(System.PullRequest.targetBranchName)
+    BRIDGE_COVERITY_AUTOMATION_PRCOMMENT: true
+    BRIDGE_AZURE_USER_TOKEN: $(System.AccessToken)
+    BRIDGE_AZURE_ORGANIZATION_NAME: chuckaude
+    BRIDGE_AZURE_REPOSITORY_NAME: $(Build.Repository.Name)
+    BRIDGE_AZURE_PROJECT_NAME: $(Build.Repository.Name)
+    BRIDGE_AZURE_REPOSITORY_BRANCH_NAME: $(System.PullRequest.SourceBranch)
+    BRIDGE_AZURE_REPOSITORY_PULL_NUMBER: $(System.PullRequest.PullRequestId)
+    # BRIDGE_COVERITY_LOCAL: true
+    # INCLUDE_DIAGNOSTICS: 'true'
+  displayName: 'Coverity PR Scan'
+  condition: eq(variables['Build.Reason'], 'PullRequest')
+- task: ArchiveFiles@2
+  displayName: 'Copy Log Files'
+  condition: succeededOrFailed()
+  enabled: false
+  inputs:
+    rootFolderOrFile: .bridge
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/bridge-logs.zip'
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Log Files'
+  condition: succeededOrFailed()
+  enabled: false
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'logs'

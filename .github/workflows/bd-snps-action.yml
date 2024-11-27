@@ -1,0 +1,44 @@
+# example workflow for Black Duck scans using the Synopsys Action
+# https://github.com/marketplace/actions/synopsys-action
+name: bd-snps-action
+on:
+  push:
+    branches: [ main, master, develop, stage, release ]
+  pull_request:
+    branches: [ main, master, develop, stage, release ]
+  workflow_dispatch:
+jobs:
+  blackduck:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Checkout Source
+      uses: actions/checkout@v4
+    - name: Setup Java JDK
+      uses: actions/setup-java@v4
+      with:
+        java-version: 17
+        distribution: microsoft
+        cache: maven
+    - name: Maven Build
+      run: mvn -B -DskipTests package
+    - name: Black Duck Scan
+      uses: synopsys-sig/synopsys-action@v1.13.0
+      env:
+        DETECT_PROJECT_NAME: ${{ github.event.repository.name }}
+      with:
+        blackduck_url: ${{ vars.BLACKDUCK_URL }}
+        blackduck_token: ${{ secrets.BLACKDUCK_API_TOKEN }}
+        blackduck_scan_failure_severities: 'BLOCKER'
+        blackduck_fixpr_enabled: true
+        blackduck_prComment_enabled: true
+        blackduck_reports_sarif_create: true
+        blackduck_upload_sarif_report: true
+        github_token: ${{ secrets.GITHUB_TOKEN }}
+        # include_diagnostics: true
+#    - name: Save Logs
+#      if: always()
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: bridge-logs
+#        path: ${{ github.workspace }}/.bridge
+#        include-hidden-files: true

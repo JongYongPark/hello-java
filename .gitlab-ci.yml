@@ -1,0 +1,384 @@
+include:
+  - project: synopsys/synopsys-template
+    ref: v1.10.0
+    file: templates/synopsys-template.yml
+
+stages:
+  - build
+  - test
+  - security
+  - deploy
+
+variables:
+  SCAN_BRANCHES: "/^(main|master|develop|stage|release)$/"
+  MAVEN_OPTS: >-
+    -Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository
+  MAVEN_CLI_OPTS: >-
+    --batch-mode
+
+cache:
+  paths:
+    - .m2/repository/
+    - target/
+
+image: maven:3-eclipse-temurin-17
+
+build:
+  stage: build
+  script: mvn -B compile
+
+test:
+  stage: test
+  script: mvn -B test
+
+deploy:
+  stage: deploy
+  only:
+    variables:
+      - $CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES
+  script: mvn -B install
+
+bd-sig-template:
+  stage: security
+  rules:
+    - if: (($CI_COMMIT_BRANCH =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event') ||
+        ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE == 'merge_request_event'))
+  variables:
+    BRIDGE_BLACKDUCK_URL: $BLACKDUCK_URL
+    BRIDGE_BLACKDUCK_TOKEN: $BLACKDUCK_API_TOKEN
+    BRIDGE_BLACKDUCK_SCAN_FAILURE_SEVERITIES: 'BLOCKER'
+    BRIDGE_BLACKDUCK_FIXPR_ENABLED: 'true'
+    BRIDGE_BLACKDUCK_AUTOMATION_PRCOMMENT: 'true'
+    BRIDGE_BLACKDUCK_REPORTS_SARIF_CREATE: 'true'
+    BRIDGE_GITLAB_USER_TOKEN: $GITLAB_USER_TOKEN
+    DETECT_PROJECT_NAME: $CI_PROJECT_NAME
+    # INCLUDE_DIAGNOSTICS: 'true'
+  before_script:
+    - apt-get -qq update && apt-get install -y curl unzip
+  extends: .run-synopsys-tools
+  #artifacts:
+  #  name: "bridge-logs"
+  #  when: always
+  #  paths:
+  #    - .bridge/
+  #  expire_in: 30 days
+
+.bd-bridge-cli:
+  stage: security
+  variables:
+    BRIDGE_BLACKDUCK_URL: $BLACKDUCK_URL
+    BRIDGE_BLACKDUCK_TOKEN: $BLACKDUCK_API_TOKEN
+    BRIDGE_GITLAB_REPOSITORY_NAME: $CI_PROJECT_ID
+    BRIDGE_GITLAB_REPOSITORY_BRANCH_NAME: $CI_COMMIT_REF_NAME
+    BRIDGE_GITLAB_USER_TOKEN: $GITLAB_USER_TOKEN
+    DETECT_PROJECT_NAME: $CI_PROJECT_NAME
+    # INCLUDE_DIAGNOSTICS: 'true'
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+      variables:
+        BRIDGE_BLACKDUCK_SCAN_FULL: 'true'
+        BRIDGE_BLACKDUCK_SCAN_FAILURE_SEVERITIES: 'BLOCKER'
+        BRIDGE_BLACKDUCK_FIXPR_ENABLED: 'true'
+        BRIDGE_BLACKDUCK_REPORTS_SARIF_CREATE: 'true'
+        DETECT_PROJECT_VERSION_NAME: $CI_COMMIT_REF_NAME
+        DETECT_CODE_LOCATION_NAME: $CI_PROJECT_NAME-$CI_COMMIT_REF_NAME
+    - if: ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE == 'merge_request_event')
+      variables:
+        BRIDGE_BLACKDUCK_SCAN_FULL: 'false'
+        BRIDGE_BLACKDUCK_AUTOMATION_PRCOMMENT: 'true'
+        BRIDGE_GITLAB_REPOSITORY_PULL_NUMBER: $CI_MERGE_REQUEST_IID
+        DETECT_PROJECT_VERSION_NAME: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+        DETECT_CODE_LOCATION_NAME: $CI_PROJECT_NAME-$CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+  before_script:
+    - apt-get -qq update && apt-get install -y curl unzip
+  script:
+    - curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d /tmp bridge.zip && rm -f bridge.zip
+    - /tmp/synopsys-bridge --stage blackduck
+  #artifacts:
+  #  name: "bridge-logs"
+  #  when: always
+  #  paths:
+  #    - .bridge/
+  #  expire_in: 30 days
+
+.bd-detect-cli:
+  stage: security
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+  variables:
+    DETECT_PROJECT_NAME: $CI_PROJECT_NAME
+    DETECT_PROJECT_VERSION_NAME: $CI_COMMIT_REF_NAME
+    DETECT_CODE_LOCATION_NAME: $CI_PROJECT_NAME-$CI_COMMIT_REF_NAME
+  script:
+    - curl -fLsS -o /tmp/detect9.sh https://detect.synopsys.com/detect9.sh && chmod +x /tmp/detect9.sh
+    - /tmp/detect9.sh --detect.policy.check.fail.on.severities=BLOCKER
+  #artifacts:
+  #  name: "blackduck-logs"
+  #  when: always
+  #  paths:
+  #    - /root/blackduck/runs
+  #  expire_in: 30 days
+
+coverity-sig-template:
+  stage: security
+  variables:
+    BRIDGE_COVERITY_CONNECT_URL: $COVERITY_URL
+    BRIDGE_COVERITY_CONNECT_USER_NAME: $COV_USER
+    BRIDGE_COVERITY_CONNECT_USER_PASSWORD: $COVERITY_PASSPHRASE
+    BRIDGE_GITLAB_USER_TOKEN: $GITLAB_USER_TOKEN
+    # BRIDGE_COVERITY_LOCAL: true
+    # INCLUDE_DIAGNOSTICS: 'true'
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+      variables:
+        BRIDGE_COVERITY_CONNECT_POLICY_VIEW: 'Outstanding Issues'
+    - if: ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE == 'merge_request_event')
+      variables:
+        BRIDGE_COVERITY_AUTOMATION_PRCOMMENT: 'true'
+  before_script:
+    - apt-get -qq update && apt-get install -y curl unzip
+  extends: .run-synopsys-tools
+  #artifacts:
+  #  name: "bridge-logs"
+  #  when: always
+  #  paths:
+  #    - .bridge/
+  #  expire_in: 30 days
+
+.coverity-bridge-cli:
+  stage: security
+  variables:
+    BRIDGE_COVERITY_CONNECT_URL: $COVERITY_URL
+    BRIDGE_COVERITY_CONNECT_USER_NAME: $COV_USER
+    BRIDGE_COVERITY_CONNECT_USER_PASSWORD: $COVERITY_PASSPHRASE
+    BRIDGE_COVERITY_CONNECT_PROJECT_NAME: $CI_PROJECT_NAME
+    BRIDGE_GITLAB_REPOSITORY_NAME: $CI_PROJECT_ID
+    BRIDGE_GITLAB_REPOSITORY_BRANCH_NAME: $CI_COMMIT_REF_NAME
+    BRIDGE_GITLAB_USER_TOKEN: $GITLAB_USER_TOKEN
+    # BRIDGE_COVERITY_LOCAL: true
+    # INCLUDE_DIAGNOSTICS: 'true'
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+      variables:
+        BRIDGE_COVERITY_CONNECT_STREAM_NAME: $CI_PROJECT_NAME-$CI_COMMIT_REF_NAME
+        BRIDGE_COVERITY_CONNECT_POLICY_VIEW: 'Outstanding Issues'
+    - if: ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE == 'merge_request_event')
+      variables:
+        BRIDGE_COVERITY_CONNECT_STREAM_NAME: $CI_PROJECT_NAME-$CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+        BRIDGE_COVERITY_AUTOMATION_PRCOMMENT: 'true'
+        BRIDGE_GITLAB_REPOSITORY_PULL_NUMBER: $CI_MERGE_REQUEST_IID
+  before_script:
+    - apt-get -qq update && apt-get install -y curl unzip
+  script:
+    - curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d /tmp bridge.zip && rm -f bridge.zip
+    - /tmp/synopsys-bridge --stage connect
+  #artifacts:
+  #  name: "bridge-logs"
+  #  when: always
+  #  paths:
+  #    - .bridge/
+  #  expire_in: 30 days
+
+.coverity-thin-client:
+  stage: security
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+  variables:
+    COVERITY_PROJECT: $CI_PROJECT_NAME
+    COVERITY_STREAM: $CI_PROJECT_NAME-$CI_COMMIT_REF_NAME
+  script:
+    - curl -fLsS $COVERITY_URL/api/v2/scans/downloads/$COVERITY_THIN_CLIENT | tar -C /tmp -xzf -
+    - export COVERITY_CLI_CLOUD_ANALYSIS_ASYNC=false
+    - /tmp/bin/coverity scan -o analyze.location=connect -o commit.connect.url=$COVERITY_URL
+        -o commit.connect.project=$COVERITY_PROJECT -o commit.connect.stream=$COVERITY_STREAM
+        -o commit.connect.description=$CI_PIPELINE_URL -o commit.connect.version=$CI_COMMIT_SHORT_SHA
+  #artifacts:
+  #  name: "coverity-logs"
+  #  when: always
+  #  paths:
+  #    - idir/
+  #  expire_in: 30 days
+
+.coverity-cli:
+  stage: security
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+  variables:
+    COVERITY_PROJECT: $CI_PROJECT_NAME
+    COVERITY_STREAM: $CI_PROJECT_NAME-$CI_COMMIT_REF_NAME
+  script:
+    - curl -fLsS --user $COV_USER:$COVERITY_PASSPHRASE $COVERITY_URL/downloadFile.htm?fn=$COVERITY_TOOLKIT.tar.gz | tar -C /tmp -xzf -
+    - curl -fLsS --user $COV_USER:$COVERITY_PASSPHRASE -o /tmp/$COVERITY_TOOLKIT/bin/license.dat $COVERITY_URL/downloadFile.htm?fn=license.dat
+    - /tmp/$COVERITY_TOOLKIT/bin/coverity scan -o commit.connect.url=$COVERITY_URL
+        -o commit.connect.project=$COVERITY_PROJECT -o commit.connect.stream=$COVERITY_STREAM
+        -o commit.connect.description=$CI_PIPELINE_URL -o commit.connect.version=$CI_COMMIT_SHORT_SHA
+  #artifacts:
+  #  name: "coverity-logs"
+  #  when: always
+  #  paths:
+  #    - idir/build-log.txt
+  #  expire_in: 30 days
+
+.coverity-bac:
+  stage: security
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+  variables:
+    COVERITY_PROJECT: $CI_PROJECT_NAME
+    COVERITY_STREAM: $CI_PROJECT_NAME-$CI_COMMIT_REF_NAME
+  script:
+    - curl -fLsS --user $COV_USER:$COVERITY_PASSPHRASE $COVERITY_URL/downloadFile.htm?fn=$COVERITY_TOOLKIT.tar.gz | tar -C /tmp -xzf -
+    - curl -fLsS --user $COV_USER:$COVERITY_PASSPHRASE -o /tmp/$COVERITY_TOOLKIT/bin/license.dat $COVERITY_URL/downloadFile.htm?fn=license.dat
+    - export PATH=$PATH:/tmp/$COVERITY_TOOLKIT/bin
+    - cov-configure --java
+    - cov-configure --javascript
+    - cov-build --dir idir --fs-capture-search $CI_PROJECT_DIR mvn -B -DskipTests package
+    - cov-analyze --dir idir --ticker-mode none --strip-path $CI_PROJECT_DIR --webapp-security
+    - cov-commit-defects --dir idir --ticker-mode none --url $COVERITY_URL --stream $COVERITY_STREAM --scm git
+        --description $CI_PIPELINE_URL --target $CI_RUNNER_EXECUTABLE_ARCH --version $CI_COMMIT_SHORT_SHA
+  #artifacts:
+  #  name: "coverity-logs"
+  #  when: always
+  #  paths:
+  #    - idir/build-log.txt
+  #  expire_in: 30 days
+
+.coverity-incr:
+  stage: security
+  only:
+    refs:
+    - merge_requests
+    variables:
+      - $CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ $SCAN_BRANCHES
+  variables:
+    COV_STREAM: $CI_PROJECT_NAME-$CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+  script:
+    - curl -fLsS --user $COV_USER:$COVERITY_PASSPHRASE $COVERITY_URL/downloadFile.htm?fn=$COVERITY_TOOLKIT.tar.gz | tar -C /tmp -xzf -
+    - curl -fLsS --user $COV_USER:$COVERITY_PASSPHRASE -o /tmp/$COVERITY_TOOLKIT/bin/license.dat $COVERITY_URL/downloadFile.htm?fn=license.dat
+    - export PATH=$PATH:/tmp/$COVERITY_TOOLKIT/bin
+    - export CHANGE_SET=$(git --no-pager diff origin/$CI_MERGE_REQUEST_TARGET_BRANCH_NAME --name-only)
+    - cov-run-desktop --dir idir --url $COVERITY_URL --stream $COV_STREAM --build mvn -B -DskipTests package
+    - cov-run-desktop --dir idir --url $COVERITY_URL --stream $COV_STREAM --present-in-reference false
+        --ignore-uncapturable-inputs true --exit1-if-defects true $CHANGE_SET
+  #artifacts:
+  #  name: "coverity-logs"
+  #  when: always
+  #  paths:
+  #    - idir/build-log.txt
+  #  expire_in: 30 days
+
+.coverity-on-polaris:
+  stage: security
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+  script:
+    - apt-get -qq update && apt-get install -y curl unzip
+    - curl -fLOsS $POLARIS_SERVER_URL/api/tools/polaris_cli-linux64.zip
+    - unzip -d /tmp -jo polaris_cli-linux64.zip && rm -f polaris_cli-linux64.zip
+    - /tmp/polaris --co project.name=$CI_PROJECT_NAMESPACE-$CI_PROJECT_NAME analyze -w
+  #artifacts:
+  #  name: "polaris-cli-logs"
+  #  when: always
+  #  paths:
+  #    - .synopsys/
+  #  expire_in: 30 days
+
+polaris-sig-template:
+  stage: security
+  rules:
+    - if: (($CI_COMMIT_BRANCH =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event') ||
+        ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE == 'merge_request_event'))
+  variables:
+    BRIDGE_POLARIS_SERVERURL: $POLARIS_SERVERURL
+    BRIDGE_POLARIS_ACCESSTOKEN: $POLARIS_ACCESSTOKEN
+    BRIDGE_POLARIS_ASSESSMENT_TYPES: 'SAST,SCA'
+    BRIDGE_POLARIS_APPLICATION_NAME: $CI_PROJECT_NAMESPACE-$CI_PROJECT_NAME
+    BRIDGE_POLARIS_PRCOMMENT_ENABLED: 'true'
+    BRIDGE_POLARIS_REPORTS_SARIF_CREATE: 'true'
+    BRIDGE_GITLAB_USER_TOKEN: $GITLAB_USER_TOKEN
+    # INCLUDE_DIAGNOSTICS: 'true'
+  before_script:
+    - apt-get -qq update && apt-get install -y curl unzip
+  extends: .run-synopsys-tools
+  #artifacts:
+  #  name: "bridge-logs"
+  #  when: always
+  #  paths:
+  #    - .bridge/
+  #  expire_in: 30 days
+
+.polaris-bridge-cli:
+  stage: security
+  variables:
+    BRIDGE_POLARIS_SERVERURL: $POLARIS_SERVERURL
+    BRIDGE_POLARIS_ACCESSTOKEN: $POLARIS_ACCESSTOKEN
+    BRIDGE_POLARIS_ASSESSMENT_TYPES: 'SAST,SCA'
+    BRIDGE_POLARIS_APPLICATION_NAME: $CI_PROJECT_NAMESPACE-$CI_PROJECT_NAME
+    BRIDGE_POLARIS_PROJECT_NAME: $CI_PROJECT_NAME
+    BRIDGE_POLARIS_BRANCH_NAME: $CI_COMMIT_REF_NAME
+    BRIDGE_GITLAB_REPOSITORY_NAME: $CI_PROJECT_ID
+    BRIDGE_GITLAB_REPOSITORY_BRANCH_NAME: $CI_COMMIT_REF_NAME
+    BRIDGE_GITLAB_USER_TOKEN: $GITLAB_USER_TOKEN
+    # INCLUDE_DIAGNOSTICS: 'true'
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+      variables:
+        BRIDGE_POLARIS_REPORTS_SARIF_CREATE: 'true'
+    - if: ($CI_MERGE_REQUEST_TARGET_BRANCH_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE == 'merge_request_event')
+      variables:
+        BRIDGE_POLARIS_BRANCH_PARENT_NAME: $CI_MERGE_REQUEST_TARGET_BRANCH_NAME
+        BRIDGE_POLARIS_PRCOMMENT_ENABLED: 'true'
+        BRIDGE_GITLAB_REPOSITORY_PULL_NUMBER: $CI_MERGE_REQUEST_IID
+  before_script:
+    - apt-get -qq update && apt-get install -y curl unzip
+  script:
+    - curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d /tmp bridge.zip && rm -f bridge.zip
+    - /tmp/synopsys-bridge --stage polaris
+  #artifacts:
+  #  name: "bridge-logs"
+  #  when: always
+  #  paths:
+  #    - .bridge/
+  #  expire_in: 30 days
+
+srm-sig-template:
+  stage: security
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+  variables:
+    BRIDGE_SRM_URL: $SRM_URL
+    BRIDGE_SRM_APIKEY: $SRM_APIKEY
+    BRIDGE_SRM_ASSESSMENT_TYPES: 'SAST,SCA'
+    # INCLUDE_DIAGNOSTICS: 'true'
+  before_script:
+    - apt-get -qq update && apt-get install -y curl unzip
+  extends: .run-synopsys-tools
+  #artifacts:
+  #  name: "bridge-logs"
+  #  when: always
+  #  paths:
+  #    - .bridge/
+  #  expire_in: 30 days
+
+.srm-bridge-cli:
+  stage: security
+  rules:
+    - if: ($CI_COMMIT_REF_NAME =~ $SCAN_BRANCHES && $CI_PIPELINE_SOURCE != 'merge_request_event')
+  variables:
+    BRIDGE_SRM_URL: $SRM_URL
+    BRIDGE_SRM_APIKEY: $SRM_APIKEY
+    BRIDGE_SRM_ASSESSMENT_TYPES: 'SAST,SCA'
+    BRIDGE_SRM_PROJECT_NAME: $CI_PROJECT_NAME
+    BRIDGE_SRM_BRANCH_NAME: $CI_COMMIT_REF_NAME
+    # INCLUDE_DIAGNOSTICS: 'true'
+  before_script:
+    - apt-get -qq update && apt-get install -y curl unzip
+  script:
+    - curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d /tmp bridge.zip && rm -f bridge.zip
+    - /tmp/synopsys-bridge --stage srm
+  #artifacts:
+  #  name: "bridge-logs"
+  #  when: always
+  #  paths:
+  #    - .bridge/
+  #  expire_in: 30 days

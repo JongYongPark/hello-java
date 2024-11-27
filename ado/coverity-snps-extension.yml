@@ -1,0 +1,52 @@
+# example pipeline for Coverity scans using the Synopsys Security Scan extension for ADO
+# https://marketplace.visualstudio.com/items?itemName=synopsys-security-scan.synopsys-security-scan
+trigger:
+- main
+- develop
+pool:
+  vmImage: ubuntu-latest
+variables:
+  - group: poc357.coverity.synopsys.com
+  - name: COVERITY_VIEW
+    ${{ if eq(variables['Build.Reason'], 'PullRequest') }}:
+      value: ''
+    ${{ else }}:
+      value: 'Outstanding Issues'
+steps:
+- task: JavaToolInstaller@0
+  displayName: 'Use Java 17'
+  inputs:
+    versionSpec: 17
+    jdkArchitectureOption: x64
+    jdkSourceOption: PreInstalled
+- task: Maven@4
+  displayName: 'Maven Build'
+  inputs:
+    options: '-B -DskipTests'
+- task: SynopsysSecurityScan@1
+  displayName: 'Coverity Scan'
+  inputs:
+    coverity_url: $(COVERITY_URL)
+    coverity_user: $(COV_USER)
+    coverity_passphrase: $(COVERITY_PASSPHRASE)
+    coverity_policy_view: $(COVERITY_VIEW)
+    coverity_prcomment_enabled: true
+    azure_token: $(System.AccessToken)
+    mark_build_status: 'SucceededWithIssues'
+    # coverity_local: true
+    # include_diagnostics: true
+- task: ArchiveFiles@2
+  displayName: 'Copy Log Files'
+  condition: succeededOrFailed()
+  enabled: false
+  inputs:
+    rootFolderOrFile: .bridge
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/bridge-logs.zip'
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Log Files'
+  condition: succeededOrFailed()
+  enabled: false
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'logs'

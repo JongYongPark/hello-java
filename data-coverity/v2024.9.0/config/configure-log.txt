@@ -1,0 +1,3 @@
+Native Compiler and extra args: ./ 
+Working directory: /home/jonpark/workspace/jonpark-work/hello-java
+Comptype: kotlinc

@@ -1,0 +1,69 @@
+# example pipeline for Polaris scans using the Bridge CLI
+trigger:
+- main
+- develop
+pool:
+  vmImage: ubuntu-latest
+variables:
+  - group: poc.polaris.synopsys.com
+steps:
+- task: JavaToolInstaller@0
+  displayName: 'Use Java 17'
+  inputs:
+    versionSpec: 17
+    jdkArchitectureOption: x64
+    jdkSourceOption: PreInstalled
+- task: Maven@4
+  displayName: 'Maven Build'
+  inputs:
+    options: '-B -DskipTests'
+- bash: |
+    curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d $(Agent.TempDirectory) bridge.zip && rm -f bridge.zip
+    $(Agent.TempDirectory)/synopsys-bridge --stage polaris
+  env:
+    BRIDGE_POLARIS_SERVERURL: $(POLARIS_SERVERURL)
+    BRIDGE_POLARIS_ACCESSTOKEN: $(POLARIS_ACCESSTOKEN)
+    BRIDGE_POLARIS_ASSESSMENT_TYPES: 'SAST,SCA'
+    BRIDGE_POLARIS_APPLICATION_NAME: chuckaude-$(Build.Repository.Name)
+    BRIDGE_POLARIS_PROJECT_NAME: $(Build.Repository.Name)
+    BRIDGE_POLARIS_BRANCH_NAME: $(Build.SourceBranchName)
+    BRIDGE_POLARIS_REPORTS_SARIF_CREATE: true
+    # INCLUDE_DIAGNOSTICS: 'true'
+  displayName: 'Polaris Full Scan'
+  condition: not(eq(variables['Build.Reason'], 'PullRequest'))
+- bash: |
+    curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d $(Agent.TempDirectory) bridge.zip && rm -f bridge.zip
+    $(Agent.TempDirectory)/synopsys-bridge --stage polaris
+  env:
+    BRIDGE_POLARIS_SERVERURL: $(POLARIS_SERVERURL)
+    BRIDGE_POLARIS_ACCESSTOKEN: $(POLARIS_ACCESSTOKEN)
+    BRIDGE_POLARIS_ASSESSMENT_TYPES: 'SAST,SCA'
+    BRIDGE_POLARIS_APPLICATION_NAME: chuckaude-$(Build.Repository.Name)
+    BRIDGE_POLARIS_PROJECT_NAME: $(Build.Repository.Name)
+    BRIDGE_POLARIS_BRANCH_NAME: $(Build.SourceBranchName)
+    BRIDGE_POLARIS_BRANCH_PARENT_NAME: $(System.PullRequest.targetBranchName)
+    BRIDGE_POLARIS_PRCOMMENT_ENABLED: true
+    BRIDGE_AZURE_USER_TOKEN: $(System.AccessToken)
+    BRIDGE_AZURE_ORGANIZATION_NAME: chuckaude
+    BRIDGE_AZURE_REPOSITORY_NAME: $(Build.Repository.Name)
+    BRIDGE_AZURE_PROJECT_NAME: $(Build.Repository.Name)
+    BRIDGE_AZURE_REPOSITORY_BRANCH_NAME: $(System.PullRequest.SourceBranch)
+    BRIDGE_AZURE_REPOSITORY_PULL_NUMBER: $(System.PullRequest.PullRequestId)
+    # INCLUDE_DIAGNOSTICS: 'true'
+  displayName: 'Polaris PR Scan'
+  condition: eq(variables['Build.Reason'], 'PullRequest')
+- task: ArchiveFiles@2
+  displayName: 'Copy Log Files'
+  condition: succeededOrFailed()
+  enabled: false
+  inputs:
+    rootFolderOrFile: .bridge
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/bridge-logs.zip'
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Log Files'
+  condition: succeededOrFailed()
+  enabled: false
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'logs'
