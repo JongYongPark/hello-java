@@ -1,0 +1,43 @@
+// example Jenkinsfile for SRM Integrated scans using the Synopsys Security Scan Plugin
+// https://plugins.jenkins.io/synopsys-security-scan
+pipeline {
+    agent { label 'linux64' }
+    environment {
+        REPO_NAME = "${env.GIT_URL.tokenize('/.')[-2]}"
+        FULLSCAN = "${env.BRANCH_NAME ==~ /^(main|master|develop|stage|release)$/ ? 'true' : 'false'}"
+        PRSCAN = "${env.CHANGE_TARGET ==~ /^(main|master|develop|stage|release)$/ ? 'true' : 'false'}"
+        GITHUB_TOKEN = credentials('github-pat')
+    }
+    tools {
+        maven 'maven-3.9'
+        jdk 'openjdk-17'
+    }
+    stages {
+        stage('Build') {
+            steps {
+                sh 'mvn -B package'
+            }
+        }
+        stage('SRM') {
+            when {
+                anyOf {
+                    environment name: 'FULLSCAN', value: 'true'
+                    environment name: 'PRSCAN', value: 'true'
+                }
+            }
+            steps {
+                synopsys_scan product: 'srm',
+                    srm_assessment_types: 'SAST,SCA',
+                    srm_project_name: "$REPO_NAME",
+                    srm_branch_name: "$BRANCH_NAME"
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts allowEmptyArchive: true, artifacts: '.bridge/bridge.log, .bridge/*/idir/build-log.txt'
+            //zip archive: true, dir: '.bridge', zipFile: 'bridge-logs.zip'
+            cleanWs()
+        }
+    }
+}

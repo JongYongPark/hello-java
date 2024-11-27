@@ -1,0 +1,88 @@
+// Jenkinsfile for Black Duck + Polaris with unsupported LCA Polaris incremental for PR scans
+pipeline {
+    agent { label 'linux64' }
+
+    environment {
+        // extract REPO_NAME from GIT_URL
+        REPO_NAME = "${env.GIT_URL.tokenize('/.')[-2]}"
+        POLARIS_FF_ENABLE_COVERITY_INCREMENTAL = 'true'
+    }
+
+    tools {
+        maven 'maven-3.9'
+        jdk 'openjdk-17'
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                sh 'mvn -B compile'
+            }
+        }
+        stage('Test') {
+            steps {
+                sh 'mvn -B test'
+            }
+        }
+        stage('Security') {
+            parallel {
+                stage('Black Duck') {
+                    steps {
+                        synopsys_detect "--detect.project.name=$REPO_NAME --detect.project.version.name=$BRANCH_NAME"
+                    }
+                }
+                stage('Polaris Full Scan') {
+                    when {
+                        allOf {
+                            not { changeRequest() }
+                            expression { BRANCH_NAME ==~ /(main|stage|release)/ }
+                        }
+                    }
+                    steps {
+                        polaris arguments: "--co project.name=$REPO_NAME analyze -w", polarisCli: 'default'
+                        script {
+                            count = polarisIssueCheck jobTimeoutInMinutes: 30, returnIssueCount: true
+                            if (count != 0) { unstable 'Outstanding Issues Detected' }
+                        }
+                    }
+                }
+                stage('Polaris Incremental Scan') {
+                    when {
+                        allOf {
+                            changeRequest()
+                            expression { CHANGE_TARGET ==~ /(main|stage|release)/ }
+                        }
+                    }
+                    steps {
+                        sh '''
+                            git --no-pager diff origin/$CHANGE_TARGET --name-only > changeset.txt
+                            [ -s changeset.txt ] || exit 0
+                        '''
+                        polaris arguments: "--co project.name=$REPO_NAME analyze -w --incremental changeset.txt", polarisCli: 'default'
+                        sh '''
+                            COUNT=$(cat .synopsys/polaris/data/coverity/*/idir/incremental-results/new-issues.json | jq '. | length')
+                            if [ $COUNT -ne 0 ]; then touch issues_found; fi
+                        '''
+                        script {
+                            if (fileExists('issues_found')) { unstable 'New Issues Detected' }
+                        }
+                    }
+                }
+            }
+        }
+        stage('Deploy') {
+            when {
+                expression { BRANCH_NAME ==~ /(main|stage|release)/ }
+            }
+            steps {
+                sh 'mvn -B install'
+            }
+        }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: '.synopsys/polaris/configuration/synopsys.yml, .synopsys/polaris/data/coverity/*/idir/build-log.txt', allowEmptyArchive: true
+            cleanWs()
+        }
+    }
+}

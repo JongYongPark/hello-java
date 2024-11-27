@@ -1,0 +1,77 @@
+# example pipeline for Black Duck scans using the Bridge CLI
+trigger:
+- main
+- develop
+pool:
+  vmImage: ubuntu-latest
+variables:
+  - group: poc357.blackduck.synopsys.com
+steps:
+- task: JavaToolInstaller@0
+  displayName: 'Use Java 17'
+  inputs:
+    versionSpec: 17
+    jdkArchitectureOption: x64
+    jdkSourceOption: PreInstalled
+- task: Maven@4
+  displayName: 'Maven Build'
+  inputs:
+    options: '-B -DskipTests'
+- bash: |
+    set -ex
+    curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d $(Agent.TempDirectory) bridge.zip && rm -f bridge.zip
+    $(Agent.TempDirectory)/synopsys-bridge --stage blackduck
+  env:
+    BRIDGE_BLACKDUCK_URL: $(BLACKDUCK_URL)
+    BRIDGE_BLACKDUCK_TOKEN: $(BLACKDUCK_API_TOKEN)
+    BRIDGE_BLACKDUCK_SCAN_FULL: true
+    BRIDGE_BLACKDUCK_SCAN_FAILURE_SEVERITIES: 'BLOCKER'
+    BRIDGE_BLACKDUCK_FIXPR_ENABLED: true
+    BRIDGE_BLACKDUCK_REPORTS_SARIF_CREATE: true
+    BRIDGE_AZURE_USER_TOKEN: $(System.AccessToken)
+    BRIDGE_AZURE_ORGANIZATION_NAME: chuckaude
+    BRIDGE_AZURE_REPOSITORY_NAME: $(Build.Repository.Name)
+    BRIDGE_AZURE_PROJECT_NAME: $(Build.Repository.Name)
+    BRIDGE_AZURE_REPOSITORY_BRANCH_NAME: $(Build.SourceBranchName)
+    DETECT_PROJECT_NAME: $(Build.Repository.Name)
+    DETECT_PROJECT_VERSION_NAME: $(Build.SourceBranchName)
+    DETECT_CODE_LOCATION_NAME: $(Build.Repository.Name)-$(Build.SourceBranchName)
+    # INCLUDE_DIAGNOSTICS: 'true'
+  displayName: 'Black Duck Full Scan'
+  condition: not(eq(variables['Build.Reason'], 'PullRequest'))
+- bash: |
+    set -ex
+    curl -fLsS -o bridge.zip $BRIDGECLI_LINUX64 && unzip -qo -d $(Agent.TempDirectory) bridge.zip && rm -f bridge.zip
+    $(Agent.TempDirectory)/synopsys-bridge --stage blackduck
+  env:
+    BRIDGE_BLACKDUCK_URL: $(BLACKDUCK_URL)
+    BRIDGE_BLACKDUCK_TOKEN: $(BLACKDUCK_API_TOKEN)
+    BRIDGE_BLACKDUCK_SCAN_FULL: false
+    BRIDGE_BLACKDUCK_AUTOMATION_PRCOMMENT: true
+    BRIDGE_AZURE_USER_TOKEN: $(System.AccessToken)
+    BRIDGE_AZURE_ORGANIZATION_NAME: chuckaude
+    BRIDGE_AZURE_REPOSITORY_NAME: $(Build.Repository.Name)
+    BRIDGE_AZURE_PROJECT_NAME: $(Build.Repository.Name)
+    BRIDGE_AZURE_REPOSITORY_BRANCH_NAME: $(System.PullRequest.SourceBranch)
+    BRIDGE_AZURE_REPOSITORY_PULL_NUMBER: $(System.PullRequest.PullRequestId)
+    DETECT_PROJECT_NAME: $(Build.Repository.Name)
+    DETECT_PROJECT_VERSION_NAME: $(System.PullRequest.targetBranchName)
+    DETECT_CODE_LOCATION_NAME: $(Build.Repository.Name)-$(System.PullRequest.targetBranchName)
+    # INCLUDE_DIAGNOSTICS: 'true'
+  displayName: 'Black Duck PR Scan'
+  condition: eq(variables['Build.Reason'], 'PullRequest')
+- task: ArchiveFiles@2
+  displayName: 'Copy Log Files'
+  condition: succeededOrFailed()
+  enabled: false
+  inputs:
+    rootFolderOrFile: .bridge
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/bridge-logs.zip'
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Log Files'
+  condition: succeededOrFailed()
+  enabled: false
+  inputs:
+    PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+    ArtifactName: 'logs'
