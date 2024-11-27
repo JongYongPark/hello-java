@@ -23,9 +23,9 @@ jobs:
       run: |
         curl -fLsS -o polaris.zip $POLARIS_SERVER_URL/api/tools/polaris_cli-linux64.zip
         unzip -d ${{ runner.temp }} -jo polaris.zip && rm -f polaris.zip
-# Auto Capture 
-#        ${{ runner.temp }}/polaris --co project.name=chuckaude-${{ github.event.repository.name }} analyze -w
-# Buildless Capture
+        # Auto Capture 
+        #        ${{ runner.temp }}/polaris --co project.name=chuckaude-${{ github.event.repository.name }} analyze -w
+        # Buildless Capture
         ${{ runner.temp }}/polaris -c polaris-buildless.yml --co project.name=chuckaude-${{ github.event.repository.name }} analyze -w
         #    - name: Save Logs
 #      if: always()
