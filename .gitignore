@@ -6,7 +6,7 @@
 target
 idir
 cdir
-.data-coverity
+data-coverity
 .cicd
 .codesight
 .bridge
