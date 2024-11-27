@@ -12,8 +12,8 @@ capture:
         languages:
         - "java"
         - "javascript"
-      sourceMode:
-        sourceDir: "src/"
+      # sourceMode:
+      #   sourceDir: "src/"
 analyze:
   mode: central
 install:
