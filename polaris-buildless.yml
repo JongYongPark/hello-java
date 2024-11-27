@@ -7,9 +7,13 @@ project:
     date: ${scm.git.commit.date}
 capture:
   coverity:
-    autoCapture: enable
-# https://documentation.blackduck.com/bundle/coverity-on-polaris/page/topics/c_conf-capture.html
-# 
+    buildless:
+      project:
+        languages:
+        - "java"
+        - "javascript"
+      sourceMode:
+        sourceDir: "src/"
 analyze:
   mode: central
 install:
