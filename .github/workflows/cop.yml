@@ -25,7 +25,7 @@ jobs:
         unzip -d ${{ runner.temp }} -jo polaris.zip && rm -f polaris.zip
         # Auto Capture 
         #        ${{ runner.temp }}/polaris --co project.name=chuckaude-${{ github.event.repository.name }} analyze -w
-        # Buildless Capture
+        # Buildless Capture - not work
         ${{ runner.temp }}/polaris -c polaris-buildless.yml --co project.name=chuckaude-${{ github.event.repository.name }}  analyze -w --coverity-ignore-capture-failure
         #    - name: Save Logs
 #      if: always()

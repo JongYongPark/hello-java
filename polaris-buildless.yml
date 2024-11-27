@@ -7,16 +7,17 @@ project:
     date: ${scm.git.commit.date}
 
 # select only one mode - project mode or source mode
+# Only one mode can be specified for buildless capture; the options are project and source. Specifying more than one mode results in an error message.
 # Invalid buildless capture settings - both project mode and source mode found - provide any one    
 capture:
   coverity:
     buildless:
-      project:
-        languages:
-        - "java"
-        - "javascript"
-      # sourceMode:
-      #   sourceDir: "src/"
+      # project:
+      #   languages:
+      #   - "java"
+      #   - "javascript"
+      sourceMode:
+        sourceDir: "src/"
 analyze:
   mode: central
 install:
