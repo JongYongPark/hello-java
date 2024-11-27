@@ -5,6 +5,9 @@ project:
   revision:
     name: ${scm.git.commit}
     date: ${scm.git.commit.date}
+
+# select only one mode - project mode or source mode
+# Invalid buildless capture settings - both project mode and source mode found - provide any one    
 capture:
   coverity:
     buildless:
