@@ -1,0 +1,24 @@
+version: "1"
+project:
+  name: ${scm.git.repo}
+  branch: ${scm.git.branch}
+  revision:
+    name: ${scm.git.commit}
+    date: ${scm.git.commit.date}
+
+capture:
+  build:
+    cleanCommands:
+    - shell: [mvn, -f, pom.xml, clean]
+    buildCommands:
+    - shell: [mvn, -f, pom.xml, -DskipTests, package] 
+  fileSystem:
+    java:
+      files:
+      - directory: ${project.projectDir}
+
+analyze:
+  mode: central
+install:
+  coverity:
+    version: default
