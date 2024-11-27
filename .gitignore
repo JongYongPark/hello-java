@@ -6,4 +6,5 @@
 target
 idir
 cdir
-target
+.data-coverity
+.cicd
