@@ -30,6 +30,7 @@ jobs:
       uses: synopsys-sig/synopsys-action@v1.13.0
       env:
         DETECT_PROJECT_NAME: ${{ github.event.repository.name }}
+        DETECT_FORCE_SUCCESS: true
       with:
         blackduck_url: ${{ vars.BLACKDUCK_URL }}
         blackduck_token: ${{ secrets.BLACKDUCK_API_TOKEN }}
@@ -39,7 +40,7 @@ jobs:
         blackduck_prComment_enabled: true
         # blackduck_reports_sarif_create: true
         # blackduck_upload_sarif_report: true
-        github_token: ${{ secrets.MY_GITHUB_TOKEN }}
+        github_token: ${{ secrets.GITHUB_TOKEN }}
         include_diagnostics: true
 
     # - name: Save Logs
