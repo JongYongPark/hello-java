@@ -58,4 +58,4 @@ jobs:
       with:
         name: polaris-cli-logs
         # path: ${{ github.workspace }}/.synopsys
-        path: .synopsys
+        path: .synopsys/
