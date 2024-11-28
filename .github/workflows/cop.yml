@@ -10,6 +10,14 @@ jobs:
     steps:
     - name: Checkout Source
       uses: actions/checkout@v4
+    - name: Check Env
+      run: |
+        echo "pwd : $(pwd)"
+        echo "ls :"
+        ls -al
+        echo "github.workspace = ${{ github.workspace }}"
+        ls -al ${{ github.workspace }}
+
     - name: Setup Java JDK
       uses: actions/setup-java@v4
       with:
@@ -43,8 +51,6 @@ jobs:
 
         # Build & FileSystem Capture 
         # ${{ runner.temp }}/polaris -c polaris-build-filesystem.yml --co project.name=chuckaude-${{ github.event.repository.name }}  analyze -w --coverity-ignore-capture-failure
-
-        ls -al ${{ github.workspace }}
 
     - name: Save Logs
       if: always()
