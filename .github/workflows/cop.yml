@@ -26,6 +26,9 @@ jobs:
         # Auto Capture 
         # ${{ runner.temp }}/polaris --co project.name=chuckaude-${{ github.event.repository.name }} analyze -w
         
+        # Auto Capture with specific coverity-custom.yaml, not using coverity.yaml
+        # ${{ runner.temp }}/polaris -c polaris-custom.yml --co project.name=chuckaude-${{ github.event.repository.name }} analyze -w
+
         # Build Capture 
         # ${{ runner.temp }}/polaris -c polaris-build.yml --co project.name=chuckaude-${{ github.event.repository.name }}  analyze -w --coverity-ignore-capture-failure
 
@@ -41,9 +44,10 @@ jobs:
         # Build & FileSystem Capture 
         # ${{ runner.temp }}/polaris -c polaris-build-filesystem.yml --co project.name=chuckaude-${{ github.event.repository.name }}  analyze -w --coverity-ignore-capture-failure
 
-        #    - name: Save Logs
-#      if: always()
-#      uses: actions/upload-artifact@v4
-#      with:
-#        name: polaris-cli-logs
-#        path: ${{ github.workspace }}/.synopsys
+        
+    - name: Save Logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: polaris-cli-logs
+        path: ${{ github.workspace }}/.synopsys

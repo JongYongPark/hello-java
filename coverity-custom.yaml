@@ -1,0 +1,11 @@
+# https://documentation.blackduck.com/bundle/coverity-docs/page/commands/topics/configuration_syntax_help.html
+# https://documentation.blackduck.com/bundle/coverity-docs/page/coverity-analysis/topics/moving_from_buildless_capture_to_the_coverity_cli.html
+
+capture:
+  build:
+    clean-command: mvn -B clean
+    build-command: mvn -B -DskipTests package
+analyze:
+  checkers:
+    webapp-security:
+      enabled: true
