@@ -1,5 +1,6 @@
 # example workflow for Black Duck scans using the Synopsys Action
 # https://github.com/marketplace/actions/synopsys-action
+# https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-blackduck.html
 # https://community.blackduck.com/s/article/Enable-fixPR-in-GitHub-Request-to-Github-API-service-Failed
 # In the GitHUB Settings -> Action -> general make sure you set the "Workflow permissions" to "Read and write permissions" and also check "Allow GitHub Actions to create and approve pull requests" then save the setting.
 name: bd-snps-action
@@ -35,7 +36,7 @@ jobs:
         blackduck_prComment_enabled: true
         blackduck_reports_sarif_create: true
         blackduck_upload_sarif_report: true
-        github_token: ${{ secrets.GITHUB_TOKEN }}
+        github_token: ${{ secrets.MY_GITHUB_TOKEN }}
         # include_diagnostics: true
 #    - name: Save Logs
 #      if: always()
