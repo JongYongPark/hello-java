@@ -3,6 +3,7 @@
 .project
 .settings
 .svn
+.gradle
 target
 idir
 cdir
