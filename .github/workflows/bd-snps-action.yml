@@ -3,8 +3,8 @@
 # https://documentation.blackduck.com/bundle/bridge/page/documentation/c_github-blackduck.html
 # https://community.blackduck.com/s/article/Enable-fixPR-in-GitHub-Request-to-Github-API-service-Failed
 # In the GitHUB Settings -> Action -> general make sure you set the "Workflow permissions" to "Read and write permissions" and also check "Allow GitHub Actions to create and approve pull requests" then save the setting.
-# PR commit -> Workflow failed! Exit Code: 8 The config option bridge.break has been set to true
-# manual action run -> ok.
+# Workflow failed! Exit Code: 8 The config option bridge.break has been set to true  
+# fix - delete generated branch from fixPR
 name: bd-snps-action
 on:
   push:
@@ -34,17 +34,18 @@ jobs:
         blackduck_url: ${{ vars.BLACKDUCK_URL }}
         blackduck_token: ${{ secrets.BLACKDUCK_API_TOKEN }}
         blackduck_scan_failure_severities: 'BLOCKER'
-        blackduck_fixpr_enabled: true
+        # blackduck_fixpr_enabled: true
+        blackduck_fixpr_enabled: false
         blackduck_prComment_enabled: true
         blackduck_reports_sarif_create: true
         blackduck_upload_sarif_report: true
         github_token: ${{ secrets.MY_GITHUB_TOKEN }}
-        # include_diagnostics: true
+        include_diagnostics: true
 
-# - name: Save Logs
-#   if: always()
-#   uses: actions/upload-artifact@v4
-#   with:
-#     name: bridge-logs
-#     path: ${{ github.workspace }}/.bridge
-#     include-hidden-files: true
+    - name: Save Logs
+      if: always()
+      uses: actions/upload-artifact@v4
+      with:
+        name: bridge-logs
+        path: ${{ github.workspace }}/.bridge
+        include-hidden-files: true
