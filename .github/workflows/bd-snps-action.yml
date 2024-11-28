@@ -34,8 +34,8 @@ jobs:
         blackduck_scan_failure_severities: 'BLOCKER'
         blackduck_fixpr_enabled: true
         blackduck_prComment_enabled: true
-        blackduck_reports_sarif_create: true
-        blackduck_upload_sarif_report: true
+        # blackduck_reports_sarif_create: true
+        # blackduck_upload_sarif_report: true
         github_token: ${{ secrets.MY_GITHUB_TOKEN }}
         # include_diagnostics: true
 
