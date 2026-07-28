@@ -1,5 +1,4 @@
 // example Jenkinsfile for Coverity scans using the Bridge CLI
-// https://sig-product-docs.synopsys.com/bundle/bridge/page/documentation/c_overview.html
 pipeline {
     agent { label 'linux64' }
     environment {

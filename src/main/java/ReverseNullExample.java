@@ -1,5 +1,3 @@
-// https://sig-product-docs.synopsys.com/bundle/coverity-docs/page/checker-ref/checkers/R/reverse_inull.html
-
 public class ReverseNullExample {
     public static Object callA(Object o) {
         return "hi";

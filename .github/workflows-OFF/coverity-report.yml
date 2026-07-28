@@ -45,8 +45,6 @@ jobs:
       if: ${{ github.event_name != 'pull_request' }}
       run: |
         ${{ runner.temp }}/$COVERITY_TOOLKIT/bin/coverity scan -o commit.connect.url=$COVERITY_URL -o commit.connect.stream=$COVERITY_STREAM
-    # use the Rest API views endpoint for a quality gate, for more details see:
-    # https://community.synopsys.com/s/document-item?bundleId=coverity-docs&topicId=cov-platform-rest-api%2Ftopics%2Fretrieve_contents_of_specified_view.html
     - name: Coverity Quality Gate
       if: ${{ github.event_name != 'pull_request' }}
       run: |

@@ -8,8 +8,6 @@ project:
 capture:
   coverity:
     autoCapture: enable
-# https://documentation.blackduck.com/bundle/coverity-on-polaris/page/topics/c_conf-capture.html
-# 
 analyze:
   mode: central
 install:

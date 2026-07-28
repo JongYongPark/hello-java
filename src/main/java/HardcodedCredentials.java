@@ -1,6 +1,3 @@
-// https://sig-product-docs.synopsys.com/bundle/coverity-docs/page/checker-ref/checkers/FGH/hardcoded_credentials.html
-// https://sig-product-docs.synopsys.com/bundle/coverity-docs/page/checker-ref/checkers/VWXYZ/weak_password_hash.html
-
 import java.io.*;
 import java.sql.*;
 import javax.crypto.spec.SecretKeySpec;
